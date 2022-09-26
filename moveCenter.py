@@ -23,12 +23,15 @@ def writePcd(lidarData,SRC_path,DST_path):
 def writeLabel(label_data,SRC_path,DST_path):
     # get Name From SRC_path
     label_name = os.path.basename(SRC_path)
-    
-    DST_pcdPath = os.path.join(DST_path,label_name)
+    label_name = label_name.replace(".pcd",'.txt')
+    DST_labelPath = os.path.join(DST_path,label_name)
 
-    with open(DST_pcdPath,'w') as F: # 重写
+    with open(DST_labelPath,'w') as F: # 重写
         for label_d in label_data:
-            F.writelines(label_d)
+            print(label_d)
+            F.writelines(" ".join(str(item) for item in label_d))
+            print(" ".join(str(item) for item in label_d))
+            F.writelines("\n")
     # ^将label写入到目标文件中
 
 def findBottomLeft(lidarData):
@@ -48,11 +51,11 @@ def moveCenter(lidarData,labelData,min_x,min_y,min_z):
         l_d_arr = [float(l) for l in l_d_arr]
         # add 'car'
         #move x y z
-        l_d_arr[11] = l_d_arr - min_x
-        l_d_arr[12] = l_d_arr - min_y 
-        l_d_arr[13] = l_d_arr - min_z
-        l_d_arr = ['car'] + l_d_arr
-        newLabelData.append(l_d_arr)        
+        l_d_arr[10] = l_d_arr[10] - min_x
+        l_d_arr[11] = l_d_arr[11] - min_y 
+        l_d_arr[12] = l_d_arr[12] - min_z
+        l_d_arr = ['Car'] + l_d_arr
+        newLabelData.append(l_d_arr)    
     return newLidarData,newLabelData
 
 def findAllPcdPath(pcdfolder):
@@ -60,16 +63,14 @@ def findAllPcdPath(pcdfolder):
     pcd_list = []
     for root,dirs,files in os.walk(pcdfolder):
         for f in files:
-            print(f)
             if f.endswith(".pcd"):
                 pcd_path = os.path.join(root,f)
                 pcd_list.append(pcd_path)
     return pcd_list
 def getLabelByPcd(pcd,srcLabelFolder):
-    baseName,_ = os.path.splitext(pcd)
-    labelName = baseName+".txt"
+    baseName  = os.path.basename(pcd)
+    labelName = baseName.replace("pcd",'txt')
     labelPath = os.path.join(srcLabelFolder,labelName) # |构Label路径\
-
     # 一行行读出label
     if os.path.exists(labelPath):
         return [ line.rstrip().lstrip() for  line in open(labelPath).readlines()] # 传回label数组
@@ -79,8 +80,8 @@ def getLabelByPcd(pcd,srcLabelFolder):
 def PROCESS(srcfolder,dstfolder):
     # srcfolder-> 1, pcdfolder 2, labelfolder
     # dstfolder -> 1，pcdfolder 2,labelfolder
-    srcpcdfolder = os.path.join(srcfolder,"pcd")
-    dstpcdfolder = os.path.join(dstfolder,"pcd")
+    srcpcdfolder = os.path.join(srcfolder,"lidar")
+    dstpcdfolder = os.path.join(dstfolder,"lidar")
     srclabelfolder = os.path.join(srcfolder,"label")
     dstlabelfolder = os.path.join(dstfolder,"label")
 
@@ -91,18 +92,21 @@ def PROCESS(srcfolder,dstfolder):
     # 1，找到所有的pcd文件，获得当前文件 # 
     pcd_list = findAllPcdPath(srcpcdfolder)
     for pcd in pcd_list:
+        print(srclabelfolder)
         label_data = getLabelByPcd(pcd,srclabelfolder)
-        if label is None:
+        if label_data is None:
+            print("not f")
             continue
         # 读取pcd文件到数组中
         lidar_data = readPcd(pcd)
         # 得到pcd文件的坐标较小值
         min_x,min_y,min_z = findBottomLeft(lidar_data)
+
         # 得到坐标移动后的pcd
         lidar_data_new,label_data_new = moveCenter(lidar_data,label_data,min_x,min_y,min_z)
         # 写入到目标文件中
         writePcd(lidar_data_new, pcd, dstpcdfolder)
-        writeLabel(label_data_new,label,dstlabelfolder)
+        writeLabel(label_data_new,pcd,dstlabelfolder)
         print(pcd,"DONE!!!!!!!!")
         
 if __name__ == "__main__":
